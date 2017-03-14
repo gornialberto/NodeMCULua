@@ -1,34 +1,25 @@
 GPIO = 1
-debounceDelay = 100
+debounceDelay = 25
 debounceAlarmId = 2
 
-
-function doorLocked()
-    -- don't react to any interupts from now on and wait 50ms until the interrupt for the up event is enabled
-    -- within that 50ms the switch may bounce to its heart's content
-    gpio.trig(GPIO, "none")
+function downHandler()
+     gpio.trig(GPIO, "none")
     tmr.alarm(debounceAlarmId, debounceDelay, tmr.ALARM_SINGLE, function()
-        gpio.trig(GPIO, "up", doorUnlocked)
+        gpio.trig(GPIO, "up", upHandler)
     end)
     -- finally react to the down event
 
-    print("down")
-
-    --callWebService()
+    callWebService("down")
 end
 
-function doorUnlocked()
-    -- don't react to any interupts from now on and wait 50ms until the interrupt for the down event is enabled
-    -- within that 50ms the switch may bounce to its heart's content
-    gpio.trig(GPIO, "none")
+function upHandler()
+      gpio.trig(GPIO, "none")
     tmr.alarm(debounceAlarmId, debounceDelay, tmr.ALARM_SINGLE, function()
-        gpio.trig(GPIO, "down", doorLocked)
+        gpio.trig(GPIO, "down", downHandler)
     end)
     -- finally react to the up event
 
-    print("up")
-
-    --callWebService()
+    callWebService("up")
 end
 
     
@@ -36,7 +27,7 @@ function registerIOEvent()
 	print("Registering IO Events.")
       
     gpio.mode(GPIO, gpio.INT, gpio.PULLUP)
-    gpio.trig(GPIO, "down", doorLocked)
+    gpio.trig(GPIO, "down", downHandler)
 end
 
 
@@ -58,8 +49,6 @@ function callWebService(level)
 	print("Url: " .. url)	
 
     local tm = rtctime.epoch2cal(rtctime.get())
-
-    local level = gpio.read(GPIO)
 		
 	local bodyRequest = "{\"value1\":" .. "\"" .. level .. "\"" ..
 			",\"value3\":\"" .. tm["year"] .. "-" ..  tm["mon"] .. "\"}"

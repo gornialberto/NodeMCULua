@@ -77,7 +77,7 @@ function callWebService(timeNow)
 	print("Data from sensors retreived... sending to the cloud...")		
 
 	local makerChannelKey = "hSLKweSBrakkaagzv80YC-2S7hnvBAl-0acMt-iB3um";
-	local channelEvent = "UpBedRoomReport";
+	local channelEvent = "DownBedRoomReport";
 
 	local url = "http://maker.ifttt.com/trigger/" .. channelEvent .. "/with/key/" .. makerChannelKey;
 		

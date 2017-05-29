@@ -8,10 +8,15 @@ function continueNextSteps()
 end
 
 function connectWiFi()
-    print("Setting up WIFI...")
+  print("Setting up WIFI...")
     wifi.setmode(wifi.STATION)
-    
-    wifi.sta.config("Noi","23012711")
+
+    station_cfg={}
+    station_cfg.ssid="GE Digital Internet"
+    station_cfg.pwd="Acc3ssGr@nted"
+    station_cfg.auto=false
+    station_cfg.save=false
+    wifi.sta.config(station_cfg)
     
     wifi.sta.connect()
     

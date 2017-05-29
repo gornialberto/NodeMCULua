@@ -22,7 +22,6 @@ TLS_LUX_Quality = 0
 
 TLS_SCL_PIN = 5
 TLS_SDA_PIN = 3
-		
 	
 function getLuxValue()
 	
@@ -126,77 +125,53 @@ function collectData()
 	getPressureBMP180()	
 	getLuxValue()	
 	
-	callWebService(timeNow)
+	sendData(timeNow)
 	
 end
 
+function setupMQTTClient()
+    
+    borkerIp = "77.95.143.115";
+    brokerPort = 1883;
+ 
+    print("-------------------")
+    print("Connecting to MQTT Broker " .. borkerIp .. ":" .. brokerPort)
+    print("-------------------")
+    
+    m = mqtt.Client("GenoaOfficeEnvBoard001", 120);
+    m:lwt("GenoaOffice/EnvBoard001/status", "offline", 0, 1);
+    m:on("connect", function(client) m:publish("GenoaOffice/EnvBoard001/status","online",0,1, function(client) print("Updated will to online") end) end);
+    m:on("offline", function(client) print ("offline") end); 
+    -- for TLS: m:connect("192.168.11.118", secure-port, 1)
+    m:connect(borkerIp, brokerPort, 0, 0, function(client) print("connected") end,
+        function(client, reason) print("failed reason: " .. reason) end)
+end
 
-function callWebService(timeNow)
 
-	print("-------------------")
-	print("Executing Send Data")
-	print("-------------------")
-					
-	print("Data from sensors retreived... sending to the cloud...")		
 
-	local makerChannelKey = "hSLKweSBrakkaagzv80YC-2S7hnvBAl-0acMt-iB3um";
-	local channelEvent = "OutsideEnvReport";
-
-	local url = "http://maker.ifttt.com/trigger/" .. channelEvent .. "/with/key/" .. makerChannelKey;
-		
-	print("Url: " .. url)	
-
-    local tm = rtctime.epoch2cal(rtctime.get())
+function sendData(timeNow)
+    print("-------------------")
+    print("Executing Send Data")
+    print("-------------------")
+  
+    local tm = rtctime.epoch2cal(timeNow)
         
-		
-	local bodyRequest = "{\"value2\":" ..
-		"{ \"DHT_Quality\":\"".. DHT_Quality .. "\",\"DHT_Temperature\":\""  .. DHT_Temperature ..  "\"" ..
-		",\"DHT_Humidity\":\""  .. DHT_Humidity ..  "\",\"BMP_Quality\":\"".. BMP_Quality .. "\"" .. 
-		",\"BMP_Pressure\":\""  .. BMP_Pressure ..  "\",\"BMP_Temperature\":\"" .. BMP_Temperature ..  "\"" ..
-		",\"TLS_LUX_Quality\":\"".. TLS_LUX_Quality .. "\",\"TLS_LUX\":\""  .. TLS_LUX ..  "\"" ..
-		"\},\"value1\":{\"T\":\""  .. DHT_Temperature ..  "\",\"H\":\""  .. DHT_Humidity ..  "\"" ..
-		",\"P\":\""  .. BMP_Pressure ..  "\",\"L\":\""  .. TLS_LUX ..  "\"}" ..
-		",\"value3\":\"" .. tm["year"] .. "-" ..  tm["mon"] .. "\"}"
-
-
-	print("Body:\r\n" .. bodyRequest)
-	
-	local bodyLengh = string.len(bodyRequest)
-	
-	local header = "Content-Type: application/json\r\n" 
-    ..       "Cache-Control: no-cache" .. "\r\n"
-
-	print("Header:\r\n" .. header)		
-			
-	print("-------------------")
-	print("Sending Data...")
-	print("-------------------")
-			
-	http.put(url,header,bodyRequest,
-		  function(code, data)
-			if (code < 0) then
-				print("-------------------")
-				print("HTTP request failed\r\n")
-				print("-------------------")
-				callWebService(timeNow)
-			else
-				print("-------------------")
-				print("Data SENT!!")					
-				print("HTTP Response Code: " .. code .. "\r\n")
-				print("Response:\r\n")
-				print(data)				
-				print("-------------------")
-			end
-		  end)      
+    m:publish("/GenoaOffice/EnvBoard001/DHT_Temperature",DHT_Temperature,0,1, function(client) print("DHT_Temperature Sent") end)
+	m:publish("/GenoaOffice/EnvBoard001/DHT_Humidity",DHT_Humidity,0,1, function(client) print("DHT_Humidity Sent") end)
+	m:publish("/GenoaOffice/EnvBoard001/DHT_Quality",DHT_Quality,0,1, function(client) print("DHT_Quality Sent") end)
+	m:publish("/GenoaOffice/EnvBoard001/BMP_Pressure",BMP_Pressure,0,1, function(client) print("BMP_Pressure Sent") end)
+	m:publish("/GenoaOffice/EnvBoard001/BMP_Temperature",BMP_Temperature,0,1, function(client) print("BMP_Temperature Sent") end)
+	m:publish("/GenoaOffice/EnvBoard001/TLS_LUX",TLS_LUX,0,1, function(client) print("TLS_LUX Sent") end)
+	m:publish("/GenoaOffice/EnvBoard001/TLS_LUX_Quality",TLS_LUX_Quality,0,1, function(client) print("TLS_LUX_Quality Sent") end)
     
 	print("-------------------")
-	print("Web Service called... waiting for response...")
+	print("Data Sent")
 	print("-------------------")
-	
 end
 
 
-print("Setting and starting the polling Timer...")
-tmr.alarm(2, 300000, tmr.ALARM_AUTO, function() collectData() end )
---and start immediately the collection of the data!
-collectData()
+
+setupMQTTClient();
+
+print("Setting and starting the polling Timer...");
+tmr.alarm(2, 15000, tmr.ALARM_AUTO, function() collectData() end );

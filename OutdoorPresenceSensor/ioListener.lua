@@ -1,25 +1,18 @@
 GPIO = 1
-debounceDelay = 25
-debounceAlarmId = 2
 
-function downHandler()
-     gpio.trig(GPIO, "none")
-    tmr.alarm(debounceAlarmId, debounceDelay, tmr.ALARM_SINGLE, function()
-        gpio.trig(GPIO, "up", upHandler)
-    end)
-    -- finally react to the down event
+function debounce (func)
+    local last = 0
+    local delay = 250000
 
-    callWebService("down")
-end
+    return function (...)
+        local now = tmr.now()
+        local delta = now - last
+        if delta < 0 then delta = delta + 2147483647 end;
+        if delta < delay then return end;
 
-function upHandler()
-      gpio.trig(GPIO, "none")
-    tmr.alarm(debounceAlarmId, debounceDelay, tmr.ALARM_SINGLE, function()
-        gpio.trig(GPIO, "down", downHandler)
-    end)
-    -- finally react to the up event
-
-    callWebService("up")
+        last = now
+        return func(...)
+    end
 end
 
     
@@ -27,26 +20,31 @@ function registerIOEvent()
 	print("Registering IO Events.")
       
     gpio.mode(GPIO, gpio.INT, gpio.PULLUP)
-    gpio.trig(GPIO, "down", downHandler)
+    gpio.trig(GPIO, "both", debounce(sendData))
 end
 
 
 
 
+m = mqtt.Client("OutdoorSensorClient", 120);
+
+m:lwt("/myHome/OutdoorSensor/status", "offline", 0, 1);
 
 
-function callWebService(level)
+m:on("connect", connected(client)) );
+m:on("offline", function(client) print ("offline") end);
 
-	print("-------------------")
-	print("Executing Send Data")
-	print("-------------------")
-					
-	local makerChannelKey = "hSLKweSBrakkaagzv80YC-2S7hnvBAl-0acMt-iB3um";
-	local channelEvent = "OutdoorSensorNotification";
+function connected(client)
+    m:publish("/myHome/OutdoorSensor/status","online",0,1, function(client) print("Updated will to online") end);
+end
 
-	local url = "http://maker.ifttt.com/trigger/" .. channelEvent .. "/with/key/" .. makerChannelKey;
-		
-	print("Url: " .. url)	
+function sendData()
+
+    print("-------------------")
+    print("Executing Send Data")
+    print("-------------------")
+                    
+    local level = gpio.read(GPIO)
 
     local tm = rtctime.epoch2cal(rtctime.get())
 		
@@ -54,40 +52,13 @@ function callWebService(level)
 			",\"value3\":\"" .. tm["year"] .. "-" ..  tm["mon"] .. "\"}"
 
 
-	print("Body:\r\n" .. bodyRequest)
-	
-	local bodyLengh = string.len(bodyRequest)
-	
-	local header = "Content-Type: application/json\r\n" 
-    ..       "Cache-Control: no-cache" .. "\r\n"
+    m:publish("/myHome/OutdoorSensor",bodyRequest,0,1, function(client) print("Data Sent") end)
 
-	print("Header:\r\n" .. header)		
-			
-	print("-------------------")
-	print("Sending Data...")
-	print("-------------------")
-			
-	http.put(url,header,bodyRequest,
-		  function(code, data)
-			if (code < 0) then
-				print("-------------------")
-				print("HTTP request failed\r\n")
-				print("-------------------")
-				callWebService(timeNow)
-			else
-				print("-------------------")
-				print("Data SENT!!")					
-				print("HTTP Response Code: " .. code .. "\r\n")
-				print("Response:\r\n")
-				print(data)				
-				print("-------------------")
-			end
-		  end)      
     
 	print("-------------------")
-	print("Web Service called... waiting for response...")
+	print("Data Sent")
 	print("-------------------")
-	
+    
 end
 
 

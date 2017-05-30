@@ -8,7 +8,7 @@ function continueNextSteps()
 end
 
 function connectWiFi()
-  print("Setting up WIFI...")
+    print("Setting up WIFI...")
     wifi.setmode(wifi.STATION)
 
     station_cfg={}

@@ -1,94 +1,94 @@
-GPIO = 1
-debounceDelay = 25
-debounceAlarmId = 2
+GPIO1 = 1
+GPIO2 = 2
 
-function downHandler()
-     gpio.trig(GPIO, "none")
-    tmr.alarm(debounceAlarmId, debounceDelay, tmr.ALARM_SINGLE, function()
-        gpio.trig(GPIO, "up", upHandler)
+local debounceDelay = 150
+local debounceAlarmId1 = 2
+local debounceAlarmId2 = 3
+
+function inputDown1()
+    -- don't react to any interupts from now on and wait 50ms until the interrupt for the up event is enabled
+    -- within that 50ms the switch may bounce to its heart's content
+    gpio.trig(GPIO1, "none")
+    tmr.alarm(debounceAlarmId1, debounceDelay, tmr.ALARM_SINGLE, function()
+        gpio.trig(GPIO1, "up", inputUp1)
     end)
     -- finally react to the down event
-
-    callWebService("down")
+    sendData(1,0)
 end
 
-function upHandler()
-      gpio.trig(GPIO, "none")
-    tmr.alarm(debounceAlarmId, debounceDelay, tmr.ALARM_SINGLE, function()
-        gpio.trig(GPIO, "down", downHandler)
+function inputUp1()
+    -- don't react to any interupts from now on and wait 50ms until the interrupt for the down event is enabled
+    -- within that 50ms the switch may bounce to its heart's content
+    gpio.trig(GPIO1 "none")
+    tmr.alarm(debounceAlarmId1, debounceDelay, tmr.ALARM_SINGLE, function()
+        gpio.trig(GPIO1, "down", inputDown1)
     end)
     -- finally react to the up event
-
-    callWebService("up")
+    sendData(1,1)
 end
 
-    
+function inputDown2()
+    -- don't react to any interupts from now on and wait 50ms until the interrupt for the up event is enabled
+    -- within that 50ms the switch may bounce to its heart's content
+    gpio.trig(GPIO2, "none")
+    tmr.alarm(debounceAlarmId2, debounceDelay, tmr.ALARM_SINGLE, function()
+        gpio.trig(GPIO2, "up", inputUp2)
+    end)
+    -- finally react to the down event
+    sendData(2,0)
+end
+
+function inputUp2()
+    -- don't react to any interupts from now on and wait 50ms until the interrupt for the down event is enabled
+    -- within that 50ms the switch may bounce to its heart's content
+    gpio.trig(GPIO2 "none")
+    tmr.alarm(debounceAlarmId2, debounceDelay, tmr.ALARM_SINGLE, function()
+        gpio.trig(GPIO2, "down", inputDown2)
+    end)
+    -- finally react to the up event
+    sendData(2,1)
+end
+
+
 function registerIOEvent()
-	print("Registering IO Events.")
+    print("Registering IO Events.")
       
-    gpio.mode(GPIO, gpio.INT, gpio.PULLUP)
-    gpio.trig(GPIO, "down", downHandler)
+    gpio.mode(GPIO1, gpio.INT, gpio.PULLUP)
+    gpio.trig(GPIO1, "down", inputDow1)
+
+    gpio.mode(GPIO2, gpio.INT, gpio.PULLUP)
+    gpio.trig(GPIO2, "down", inputDow2)
 end
 
-
-
-
-
-
-function callWebService(level)
-
-	print("-------------------")
-	print("Executing Send Data")
-	print("-------------------")
-					
-	local makerChannelKey = "hSLKweSBrakkaagzv80YC-2S7hnvBAl-0acMt-iB3um";
-	local channelEvent = "RFSwitchNotification";
-
-	local url = "http://maker.ifttt.com/trigger/" .. channelEvent .. "/with/key/" .. makerChannelKey;
-		
-	print("Url: " .. url)	
-
-    local tm = rtctime.epoch2cal(rtctime.get())
-		
-	local bodyRequest = "{\"value1\":" .. "\"" .. level .. "\"" ..
-			",\"value3\":\"" .. tm["year"] .. "-" ..  tm["mon"] .. "\"}"
-
-
-	print("Body:\r\n" .. bodyRequest)
-	
-	local bodyLengh = string.len(bodyRequest)
-	
-	local header = "Content-Type: application/json\r\n" 
-    ..       "Cache-Control: no-cache" .. "\r\n"
-
-	print("Header:\r\n" .. header)		
-			
-	print("-------------------")
-	print("Sending Data...")
-	print("-------------------")
-			
-	http.put(url,header,bodyRequest,
-		  function(code, data)
-			if (code < 0) then
-				print("-------------------")
-				print("HTTP request failed\r\n")
-				print("-------------------")
-				callWebService(timeNow)
-			else
-				print("-------------------")
-				print("Data SENT!!")					
-				print("HTTP Response Code: " .. code .. "\r\n")
-				print("Response:\r\n")
-				print(data)				
-				print("-------------------")
-			end
-		  end)      
+function setupMQTTClient()
     
-	print("-------------------")
-	print("Web Service called... waiting for response...")
-	print("-------------------")
-	
+    borkerIp = "192.168.1.220";
+    brokerPort = 1883;
+ 
+    print("-------------------")
+    print("Connecting to MQTT Broker " .. borkerIp .. ":" .. brokerPort)
+    print("-------------------")
+    
+    m = mqtt.Client("RemoteKeyfobBoard", 120);
+    m:lwt("myHome/RemoteKeyfob/status", "offline", 0, 1);
+    m:on("connect", function(client) m:publish("myHome/RemoteKeyfob/status","online",0,1, function(client) print("Updated will to online") end) end);
+    m:on("offline", function(client) print ("Disconnected from Broker") end); 
+    -- for TLS: m:connect("192.168.11.118", secure-port, 1)
+    m:connect(borkerIp, brokerPort, 0, 0, function(client) print("Connected to Broker") end,
+        function(client, reason) print("failed reason: " .. reason) end)
 end
 
 
-registerIOEvent()
+function sendData(channel, level)
+   
+    local tm = rtctime.epoch2cal(rtctime.get())
+        
+    local bodyRequest = "{\"Level\":" .. "\"" .. level .. "\"" ..
+            ",\"Timestamp\":\"" .. tm .. "\"}"
+
+    m:publish("myHome/RemoteKeyfob/" .. channel, bodyRequest, 0, 1, function(client) print("Data Sent for Channel  " .. channel .. " - " .. level) end)
+    
+end
+
+setupMQTTClient();
+registerIOEvent();

@@ -131,16 +131,16 @@ end
 
 function setupMQTTClient()
     
-    borkerIp = "77.95.143.115";
+    borkerIp = "192.168.1.220";
     brokerPort = 1883;
  
     print("-------------------")
     print("Connecting to MQTT Broker " .. borkerIp .. ":" .. brokerPort)
     print("-------------------")
     
-    m = mqtt.Client("GenoaOfficeEnvBoard001", 120);
-    m:lwt("GenoaOffice/EnvBoard001/status", "offline", 0, 1);
-    m:on("connect", function(client) m:publish("GenoaOffice/EnvBoard001/status","online",0,1, function(client) print("Updated will to online") end) end);
+    m = mqtt.Client("myHomeEnvBoard001", 120);
+    m:lwt("myHome/EnvBoard001/status", "offline", 0, 1);
+    m:on("connect", function(client) m:publish("myHome/EnvBoard001/status","online",0,1, function(client) print("Updated will to online") end) end);
     m:on("offline", function(client) print ("offline") end); 
     -- for TLS: m:connect("192.168.11.118", secure-port, 1)
     m:connect(borkerIp, brokerPort, 0, 0, function(client) print("connected") end,
@@ -156,14 +156,14 @@ function sendData(timeNow)
   
     local tm = rtctime.epoch2cal(timeNow)
         
-    m:publish("GenoaOffice/EnvBoard001/DHT_Temperature",DHT_Temperature,0,1, function(client) print("DHT_Temperature Sent") end)
-	m:publish("GenoaOffice/EnvBoard001/DHT_Humidity",DHT_Humidity,0,1, function(client) print("DHT_Humidity Sent") end)
-	m:publish("GenoaOffice/EnvBoard001/DHT_Quality",DHT_Quality,0,1, function(client) print("DHT_Quality Sent") end)
-	m:publish("GenoaOffice/EnvBoard001/BMP_Pressure",BMP_Pressure,0,1, function(client) print("BMP_Pressure Sent") end)
-	m:publish("GenoaOffice/EnvBoard001/BMP_Temperature",BMP_Temperature,0,1, function(client) print("BMP_Temperature Sent") end)
-    m:publish("GenoaOffice/EnvBoard001/BMP_Quality",BMP_Quality,0,1, function(client) print("BMP_Temperature Sent") end)
-    m:publish("GenoaOffice/EnvBoard001/TLS_LUX",TLS_LUX,0,1, function(client) print("TLS_LUX Sent") end)
-	m:publish("GenoaOffice/EnvBoard001/TLS_LUX_Quality",TLS_LUX_Quality,0,1, function(client) print("TLS_LUX_Quality Sent") end)
+    m:publish("myHome/EnvBoard001/DHT_Temperature",DHT_Temperature,0,1, function(client) print("DHT_Temperature Sent") end)
+	m:publish("myHome/EnvBoard001/DHT_Humidity",DHT_Humidity,0,1, function(client) print("DHT_Humidity Sent") end)
+	m:publish("myHome/EnvBoard001/DHT_Quality",DHT_Quality,0,1, function(client) print("DHT_Quality Sent") end)
+	m:publish("myHome/EnvBoard001/BMP_Pressure",BMP_Pressure,0,1, function(client) print("BMP_Pressure Sent") end)
+	m:publish("myHome/EnvBoard001/BMP_Temperature",BMP_Temperature,0,1, function(client) print("BMP_Temperature Sent") end)
+    m:publish("myHome/EnvBoard001/BMP_Quality",BMP_Quality,0,1, function(client) print("BMP_Temperature Sent") end)
+    m:publish("myHome/EnvBoard001/TLS_LUX",TLS_LUX,0,1, function(client) print("TLS_LUX Sent") end)
+	m:publish("myHome/EnvBoard001/TLS_LUX_Quality",TLS_LUX_Quality,0,1, function(client) print("TLS_LUX_Quality Sent") end)
     
 	print("-------------------")
 	print("Data Sent")

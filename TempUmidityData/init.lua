@@ -4,14 +4,19 @@ function entryPoint()
 end
 
 function continueNextSteps()
-    dofile("setTimeSNTP.lua")
+    dofile("setTimeSNTP.lua");
 end
 
 function connectWiFi()
     print("Setting up WIFI...")
     wifi.setmode(wifi.STATION)
-    
-    wifi.sta.config("Noi","23012711")
+
+    station_cfg={}
+    station_cfg.ssid="NoiSala"
+    station_cfg.pwd="23012711"
+    station_cfg.auto=false
+    station_cfg.save=false
+    wifi.sta.config(station_cfg)
     
     wifi.sta.connect()
     

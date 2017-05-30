@@ -21,7 +21,7 @@ function getTempDHT()
 		
 		DHT_Attempt = DHT_Attempt + 1
 				
-		status, Temperature, Humidity, TemperatureDec, HumidityDec = dht.read11(DHT_PIN)
+		status, Temperature, Humidity, TemperatureDec, HumidityDec = dht.read(DHT_PIN)
 				
 		if status == dht.OK then		
 			DHT_Attempt = 0
@@ -62,73 +62,51 @@ function collectData()
 	print("Time now is " .. timeNow)
 		
 	getTempDHT()
-
-	callWebService(timeNow)
-	
-end
-
-
-function callWebService(timeNow)
-
-	print("-------------------")
-	print("Executing Send Data")
-	print("-------------------")
-					
-	print("Data from sensors retreived... sending to the cloud...")		
-
-	local makerChannelKey = "hSLKweSBrakkaagzv80YC-2S7hnvBAl-0acMt-iB3um";
-	local channelEvent = "DownBedRoomReport";
-
-	local url = "http://maker.ifttt.com/trigger/" .. channelEvent .. "/with/key/" .. makerChannelKey;
-		
-	print("Url: " .. url)	
-
-    local tm = rtctime.epoch2cal(rtctime.get())
-        
-		
-	local bodyRequest = "{\"value1\":" ..
-		"{\"DHT_Temperature\":\"".. DHT_Temperature .. "\",\"DHT_Humidity\":\""  .. DHT_Humidity ..  "\"}" ..
-		",\"value3\":\"" .. tm["year"] .. "-" ..  tm["mon"] .. "\"}"
-
-
-	print("Body:\r\n" .. bodyRequest)
-	
-	local bodyLengh = string.len(bodyRequest)
-	
-	local header = "Content-Type: application/json\r\n" 
-    ..       "Cache-Control: no-cache" .. "\r\n"
-
-	print("Header:\r\n" .. header)		
-			
-	print("-------------------")
-	print("Sending Data...")
-	print("-------------------")
-			
-	http.put(url,header,bodyRequest,
-		  function(code, data)
-			if (code < 0) then
-				print("-------------------")
-				print("HTTP request failed\r\n")
-				print("-------------------")
-				callWebService(timeNow)
-			else
-				print("-------------------")
-				print("Data SENT!!")					
-				print("HTTP Response Code: " .. code .. "\r\n")
-				print("Response:\r\n")
-				print(data)				
-				print("-------------------")
-			end
-		  end)      
     
-	print("-------------------")
-	print("Web Service called... waiting for response...")
-	print("-------------------")
-	
+    sendData(timeNow)
+    
 end
 
+function setupMQTTClient()
+    
+    borkerIp = "192.168.1.220";
+    brokerPort = 1883;
+ 
+    print("-------------------")
+    print("Connecting to MQTT Broker " .. borkerIp .. ":" .. brokerPort)
+    print("-------------------")
+    
+    m = mqtt.Client("BedroomBoard", 120);
+    m:lwt("myHome/BedroomBoard/status", "offline", 0, 1);
+    m:on("connect", function(client) m:publish("myHome/BedroomBoard/status","online",0,1, function(client) print("Updated will to online") end) end);
+    m:on("offline", function(client) print ("offline") end); 
+    -- for TLS: m:connect("192.168.11.118", secure-port, 1)
+    m:connect(borkerIp, brokerPort, 0, 0, function(client) print("connected") end,
+        function(client, reason) print("failed reason: " .. reason) end)
+end
+
+
+
+function sendData(timeNow)
+    print("-------------------")
+    print("Executing Send Data")
+    print("-------------------")
+  
+    local tm = rtctime.epoch2cal(timeNow)
+        
+    m:publish("myHome/BedroomBoard/DHT_Temperature",DHT_Temperature,0,1, function(client) print("DHT_Temperature Sent") end)
+    m:publish("myHome/BedroomBoard/DHT_Humidity",DHT_Humidity,0,1, function(client) print("DHT_Humidity Sent") end)
+    m:publish("myHome/BedroomBoard/DHT_Quality",DHT_Quality,0,1, function(client) print("DHT_Quality Sent") end)
+      
+    print("-------------------")
+    print("Data Sent")
+    print("-------------------")
+end
+
+
+
+setupMQTTClient();
 
 print("Setting and starting the polling Timer...")
-tmr.alarm(2, 300000, tmr.ALARM_AUTO, function() collectData() end )
---and start immediately the collection of the data!
-collectData()
+tmr.alarm(2, 15000, tmr.ALARM_AUTO, function() collectData() end )
+
